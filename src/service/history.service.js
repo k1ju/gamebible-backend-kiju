@@ -53,7 +53,28 @@ const updateHistoryByGameIdx = async (updateDto, conn = pool) => {
     }
 };
 
+const getHistoryByGameIdx = async (getDTO, conn = pool) => {
+    const gameIdx = getDTO.gameIdx;
+    const queryResult = await conn.query(
+        `SELECT 
+            content, created_at 
+        FROM 
+            history
+        WHERE 
+            game_idx = $1
+        ORDER BY
+            created_at DESC
+        limit 
+            1`,
+        [gameIdx]
+    );
+    console.log(queryResult.rows);
+
+    return queryResult.rows[0];
+};
+
 module.exports = {
     createHistory,
     updateHistoryByGameIdx,
+    getHistoryByGameIdx,
 };

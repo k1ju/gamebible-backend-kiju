@@ -4,10 +4,13 @@ const { pool } = require('../config/postgres');
 const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
-const { generateNotification } = require('../modules/generateNotification');
 const { generateNotification, generateNotifications } = require('../modules/generateNotification');
 const { findModifyUserAllByGameIdx } = require('../service/user.service');
-const { createHistory, updateHistoryByGameIdx } = require('../service/history.service');
+const {
+    createHistory,
+    updateHistoryByGameIdx,
+    getHistoryByGameIdx,
+} = require('../service/history.service');
 //게임생성요청
 router.post(
     '/request',
@@ -273,20 +276,7 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
 router.get('/:gameidx/wiki', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
-        const getHistorySQLResult = await pool.query(
-            `SELECT 
-                content, created_at 
-            FROM 
-                history
-            WHERE 
-                game_idx = $1
-            ORDER BY
-                created_at DESC
-            limit 
-                1`,
-            [gameIdx]
-        );
-        const history = getHistorySQLResult.rows;
+        const history = await getHistoryByGameIdx({ gameIdx });
 
         res.status(200).send({ data: history });
     } catch (e) {
