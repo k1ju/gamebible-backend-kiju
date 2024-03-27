@@ -115,29 +115,16 @@ router.get(
 //인기게임목록불러오기(게시글순)
 router.get('/popular', async (req, res, next) => {
     const { page } = req.query || 1;
-
-    let skip;
-    let count;
-    if (page == 1) {
-        //1페이지는 19개 불러오기
-        count = 19;
-        skip = 0;
-    } else {
-        //2페이지부터는 16개씩불러오기
-        count = 16;
-        skip = (page - 1) * 16 + 3;
-    }
-
     try {
-        //     //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
-        const popularGameList = await getPopularGameList(count, skip);
+        //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
+        const { skip, gameList } = await getPopularGameList(page);
 
         res.status(200).send({
             data: {
                 page: page,
                 skip: skip,
-                count: popularGameList.length,
-                gameList: popularGameList,
+                count: gameList.length,
+                gameList: gameList,
             },
         });
     } catch (e) {

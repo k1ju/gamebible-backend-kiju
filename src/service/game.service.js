@@ -27,7 +27,21 @@ const getCurrentBannerByGameIdx = async (getDTO, conn = pool) => {
     return queryResult.rows[0];
 };
 
-const getPopularGameList = async (count, skip, conn = pool) => {
+const getPopularGameList = async (page, conn = pool) => {
+    let count = null;
+    let skip = null;
+    console.log(page);
+
+    if (page == 1) {
+        //1페이지는 19개 불러오기
+        count = 19;
+        skip = 0;
+    } else {
+        //2페이지부터는 16개씩불러오기
+        count = 16;
+        skip = (page - 1) * 16 + 3;
+    }
+
     const queryResult = await conn.query(
         `SELECT
             g.idx, g.title, count(*) AS "postCount" ,t.img_path AS "imgPath" 
@@ -54,7 +68,7 @@ const getPopularGameList = async (count, skip, conn = pool) => {
         [count, skip]
     );
     const gameList = queryResult.rows;
-    return gameList;
+    return { count, skip, gameList };
 };
 
 module.exports = {
