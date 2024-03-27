@@ -7,6 +7,7 @@ const { findModifyUserAllByGameIdx } = require('./user.service');
  * history 데이터를 생성한다.
  * @param {{gameIdx: number, userIdx: number, content: string}} data
  * @param {import('pg').PoolClient | undefined} conn
+ * @param {{gameIdx: number, historyIdx: number}} getDTO
  * @returns {Promise<void>}
  */
 const createHistory = async (data, conn = pool) => {
