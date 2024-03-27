@@ -5,7 +5,9 @@ const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification } = require('../modules/generateNotification');
-
+const { generateNotification, generateNotifications } = require('../modules/generateNotification');
+const { findModifyUserAllByGameIdx } = require('../service/user.service');
+const { createHistory, updateHistoryByGameIdx } = require('../service/history.service');
 //게임생성요청
 router.post(
     '/request',
@@ -299,55 +301,20 @@ router.put(
     body('content').trim().isLength({ min: 2 }).withMessage('2글자이상 입력해주세요'),
     handleValidationErrors,
     async (req, res, next) => {
+        // HTTP 통신 처리하는 곳
         const gameIdx = req.params.gameidx;
         const { userIdx } = req.decoded;
         const { content } = req.body;
 
-        let poolClient = null;
-        try {
-            poolClient = await pool.connect();
-            await poolClient.query(`BEGIN`);
+        // 비즈니스 로직 실행 던지고
+        await updateHistoryByGameIdx({
+            gameIdx,
+            userIdx,
+            content,
+        });
 
-            //기존 게임수정자들 추출
-            const historyUserSQLResult = await poolClient.query(
-                `SELECT DISTINCT 
-                    user_idx
-                FROM
-                    history
-                WHERE 
-                    game_idx = $1`,
-                [gameIdx]
-            );
-            let historyUserList = historyUserSQLResult.rows;
-
-            for (let i = 0; i < historyUserList.length; i++) {
-                await generateNotification({
-                    conn: poolClient,
-                    type: 'MODIFY_GAME',
-                    gameIdx: gameIdx,
-                    toUserIdx: historyUserList[i].user_idx,
-                });
-            }
-
-            // 새로운 히스토리 등록
-            await poolClient.query(
-                `INSERT INTO 
-                    history(game_idx, user_idx, content)
-                VALUES 
-                    ($1, $2, $3)`,
-                [gameIdx, userIdx, content]
-            );
-
-            await poolClient.query(`COMMIT`);
-
-            res.status(200).send();
-        } catch (e) {
-            console.log('에러발생');
-            await poolClient.query(`ROLLBACK`);
-            next(e);
-        } finally {
-            if (poolClient) poolClient.release();
-        }
+        // 응답
+        res.status(200).send();
     }
 );
 
