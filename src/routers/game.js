@@ -1,15 +1,17 @@
 const router = require('express').Router();
-const moment = require('moment');
 const { pool } = require('../config/postgres');
 const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification, generateNotifications } = require('../modules/generateNotification');
 const { findModifyUserAllByGameIdx } = require('../service/user.service');
+const { getCurrentBannerByGameIdx } = require('../service/game.service');
 const {
     createHistory,
     updateHistoryByGameIdx,
-    getHistoryByGameIdx,
+    getCurrentHistoryByGameIdx,
+    getHistory,
+    getHistoryListByGameIdx,
 } = require('../service/history.service');
 //게임생성요청
 router.post(
@@ -173,20 +175,8 @@ router.get('/popular', async (req, res, next) => {
 router.get('/:gameidx/banner', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
-        //삭제되지않은 배너이미지경로 가져오기
-        const bannerSQLResult = await pool.query(
-            `
-            SELECT
-                img_path AS "imgPath"
-            FROM 
-                game_img_banner
-            WHERE
-                game_idx = $1
-            AND
-                deleted_at IS NULL`,
-            [gameIdx]
-        );
-        const banner = bannerSQLResult.rows;
+        const banner = await getCurrentBannerByGameIdx({ gameIdx });
+
         res.status(200).send({
             data: banner,
         });
@@ -200,46 +190,7 @@ router.get('/:gameidx/history', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
         //특정게임 히스토리목록 최신순으로 출력
-        const selectHistorySQLResult = await pool.query(
-            `
-            SELECT 
-                h.idx, h.created_at, u.nickname
-            FROM 
-                history h 
-            JOIN 
-                "user" u
-            ON 
-                h.user_idx = u.idx
-            WHERE 
-                game_idx = $1
-            ORDER BY
-                h.created_at DESC`,
-            [gameIdx]
-        );
-        const beforeHistoryList = selectHistorySQLResult.rows;
-
-        let idx;
-        let createdAt;
-        let nickname;
-        let timeStamp;
-        let historyTitle;
-        let history;
-        let historyList = [];
-
-        beforeHistoryList.forEach((element) => {
-            history = {};
-            idx = element.idx;
-            timeStamp = element.created_at;
-            nickname = element.nickname;
-            createdAt = moment(timeStamp).format('YYYY-MM-DD HH:mm:ss');
-
-            historyTitle = createdAt + ' ' + nickname;
-
-            history.idx = idx;
-            history.title = historyTitle;
-
-            historyList.push(history);
-        });
+        const historyList = await getHistoryListByGameIdx({ gameIdx });
 
         res.status(200).send({ data: historyList });
     } catch (e) {
@@ -252,19 +203,7 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
     const historyIdx = req.params.historyidx;
     const gameIdx = req.params.gameidx;
     try {
-        const getHistorySQLResult = await pool.query(
-            `
-            SELECT    
-                * 
-            FROM 
-                history
-            WHERE 
-                idx = $1
-            AND 
-                game_idx = $2`,
-            [historyIdx, gameIdx]
-        );
-        const history = getHistorySQLResult.rows;
+        const history = await getHistory({ historyIdx, gameIdx });
 
         res.status(200).send({ data: history });
     } catch (e) {
@@ -276,7 +215,7 @@ router.get('/:gameidx/history/:historyidx', async (req, res, next) => {
 router.get('/:gameidx/wiki', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
-        const history = await getHistoryByGameIdx({ gameIdx });
+        const history = await getCurrentHistoryByGameIdx({ gameIdx });
 
         res.status(200).send({ data: history });
     } catch (e) {

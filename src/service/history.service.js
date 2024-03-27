@@ -1,4 +1,6 @@
 const { pool } = require('../config/postgres');
+const moment = require('moment');
+
 const { findModifyUserAllByGameIdx } = require('./user.service');
 
 /**
@@ -53,7 +55,7 @@ const updateHistoryByGameIdx = async (updateDto, conn = pool) => {
     }
 };
 
-const getHistoryByGameIdx = async (getDTO, conn = pool) => {
+const getCurrentHistoryByGameIdx = async (getDTO, conn = pool) => {
     const gameIdx = getDTO.gameIdx;
     const queryResult = await conn.query(
         `SELECT 
@@ -68,13 +70,64 @@ const getHistoryByGameIdx = async (getDTO, conn = pool) => {
             1`,
         [gameIdx]
     );
-    console.log(queryResult.rows);
 
     return queryResult.rows[0];
+};
+
+const getHistory = async (getDTO, conn = pool) => {
+    const gameIdx = getDTO.gameIdx;
+    const historyIdx = getDTO.historyIdx;
+    const queryResult = await conn.query(
+        `SELECT    
+            * 
+        FROM 
+            history
+        WHERE 
+            idx = $1
+        AND 
+            game_idx = $2`,
+        [historyIdx, gameIdx]
+    );
+    return queryResult.rows[0];
+};
+
+const getHistoryListByGameIdx = async (getDTO, conn = pool) => {
+    const gameIdx = getDTO.gameIdx;
+
+    const queryResult = await conn.query(
+        `SELECT 
+            h.idx, h.created_at, u.nickname
+        FROM 
+            history h 
+        JOIN 
+            "user" u
+        ON 
+            h.user_idx = u.idx
+        WHERE 
+            game_idx = $1
+        ORDER BY
+            h.created_at DESC`,
+        [gameIdx]
+    );
+
+    const historyList = queryResult.rows;
+
+    const historyTitleList = historyList.map((element) => {
+        const { idx, created_at, nickname } = element;
+
+        const dateTime = moment(created_at).format('YYYY-MM-DD HH:mm:ss');
+        title = dateTime + ' ' + nickname;
+
+        return { idx, title };
+    });
+
+    return historyTitleList;
 };
 
 module.exports = {
     createHistory,
     updateHistoryByGameIdx,
-    getHistoryByGameIdx,
+    getCurrentHistoryByGameIdx,
+    getHistory,
+    getHistoryListByGameIdx,
 };
