@@ -2,7 +2,7 @@ const { pool } = require('../config/postgres');
 
 /**
  *
- * @param {gameIdx: number} getDTO
+ * @param {gameIdx: number, title: string} getDTO
  * @param {import("pg").PoolClient | undefined} conn
  * @param {number} page
  * @param {number} count
@@ -11,7 +11,7 @@ const { pool } = require('../config/postgres');
  */
 
 const getCurrentBannerByGameIdx = async (getDTO, conn = pool) => {
-    const gameIdx = getDTO.gameIdx;
+    const { gameIdx } = getDTO;
     const queryResult = await conn.query(
         `SELECT
             img_path AS "imgPath"
@@ -30,7 +30,6 @@ const getCurrentBannerByGameIdx = async (getDTO, conn = pool) => {
 const getPopularGameList = async (page, conn = pool) => {
     let count = null;
     let skip = null;
-    console.log(page);
 
     if (page == 1) {
         //1페이지는 19개 불러오기
@@ -71,7 +70,32 @@ const getPopularGameList = async (page, conn = pool) => {
     return { count, skip, gameList };
 };
 
+const getGameBySearch = async (getDTO, conn = pool) => {
+    const { title } = getDTO;
+    const queryResult = await conn.query(
+        `SELECT
+            g.idx, g.title, t.img_path AS "imgPath"
+        FROM
+            game g 
+        JOIN
+            game_img_thumnail t 
+        ON 
+            g.idx = t.game_idx
+        WHERE
+            title
+        LIKE 
+            '%' ||$1|| '%'
+        AND
+            t.deleted_at IS NULL`,
+        [title]
+    );
+    const gameList = queryResult.rows;
+
+    return gameList;
+};
+
 module.exports = {
     getCurrentBannerByGameIdx,
     getPopularGameList,
+    getGameBySearch,
 };

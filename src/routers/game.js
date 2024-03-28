@@ -5,7 +5,11 @@ const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
 const { generateNotification, generateNotifications } = require('../modules/generateNotification');
 const { findModifyUserAllByGameIdx } = require('../service/user.service');
-const { getCurrentBannerByGameIdx, getPopularGameList } = require('../service/game.service');
+const {
+    getCurrentBannerByGameIdx,
+    getPopularGameList,
+    getGameBySearch,
+} = require('../service/game.service');
 const {
     createHistory,
     updateHistoryByGameIdx,
@@ -84,27 +88,10 @@ router.get(
     async (req, res, next) => {
         const { title } = req.query;
         try {
-            const searchSQLResult = await pool.query(
-                `SELECT
-                    g.idx, g.title, t.img_path
-                FROM
-                    game g 
-                JOIN
-                    game_img_thumnail t 
-                ON 
-                    g.idx = t.game_idx
-                WHERE
-                    title
-                LIKE 
-                    '%' ||$1|| '%'
-                AND
-                    t.deleted_at IS NULL`,
-                [title]
-            );
-            const selectedGameList = searchSQLResult.rows;
+            const gameList = await getGameBySearch({ title });
 
             res.status(200).send({
-                data: selectedGameList,
+                data: gameList,
             });
         } catch (e) {
             next(e);
