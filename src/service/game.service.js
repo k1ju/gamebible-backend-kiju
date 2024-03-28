@@ -2,7 +2,7 @@ const { pool } = require('../config/postgres');
 
 /**
  *
- * @param {gameIdx: number, title: string} getDTO
+ * @param {gameIdx: number, userIdx: number, title: string} getDTO
  * @param {import("pg").PoolClient | undefined} conn
  * @param {number} page
  * @param {number} count
@@ -115,9 +115,22 @@ const getGameByDictionaryOrder = async (page, conn = pool) => {
     return { gameList, skip };
 };
 
+const requestGame = async (getDTO, conn = pool) => {
+    const { userIdx, title } = getDTO;
+    await conn.query(
+        `INSERT INTO 
+            request(user_idx, title) 
+        VALUES 
+            ( $1 ,$2 )`,
+        [userIdx, title]
+    );
+    return;
+};
+
 module.exports = {
     getCurrentBannerByGameIdx,
     getPopularGameList,
     getGameBySearch,
     getGameByDictionaryOrder,
+    requestGame,
 };

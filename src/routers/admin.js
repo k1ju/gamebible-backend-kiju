@@ -94,7 +94,7 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
     try {
         const selectRequestSQLResult = await pool.query(
             `SELECT
-                *
+                idx, user_idx, title, created_at 
             FROM
                 request
             WHERE 

@@ -10,6 +10,7 @@ const {
     getPopularGameList,
     getGameBySearch,
     getGameByDictionaryOrder,
+    requestGame,
 } = require('../service/game.service');
 const {
     createHistory,
@@ -28,13 +29,7 @@ router.post(
         const { title } = req.body;
         const { userIdx } = req.decoded;
         try {
-            const sql = `
-        INSERT INTO 
-            request(user_idx, title) 
-        VALUES 
-            ( $1 ,$2 ) `;
-            const values = [userIdx, title];
-            await pool.query(sql, values);
+            await requestGame({ title, userIdx });
 
             res.status(200).send();
         } catch (e) {
