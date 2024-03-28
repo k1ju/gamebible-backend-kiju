@@ -94,8 +94,30 @@ const getGameBySearch = async (getDTO, conn = pool) => {
     return gameList;
 };
 
+const getGameByDictionaryOrder = async (page, conn = pool) => {
+    const skip = (page - 1) * 20;
+    const queryResult = await conn.query(
+        `SELECT 
+            *
+        FROM 
+            game
+        WHERE 
+            deleted_at IS NULL 
+        ORDER BY 
+            title ASC
+        LIMIT 
+            20
+        OFFSET
+            $1`,
+        [skip]
+    );
+    const gameList = queryResult.rows;
+    return { gameList, skip };
+};
+
 module.exports = {
     getCurrentBannerByGameIdx,
     getPopularGameList,
     getGameBySearch,
+    getGameByDictionaryOrder,
 };

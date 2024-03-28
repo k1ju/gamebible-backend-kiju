@@ -9,6 +9,7 @@ const {
     getCurrentBannerByGameIdx,
     getPopularGameList,
     getGameBySearch,
+    getGameByDictionaryOrder,
 } = require('../service/game.service');
 const {
     createHistory,
@@ -45,27 +46,10 @@ router.post(
 //게임목록불러오기
 router.get('/', async (req, res, next) => {
     let { page } = req.query;
-    //20개씩 불러오기
-    const skip = (page - 1) * 20;
 
     try {
-        const gameSelectSQLResult = await pool.query(
-            `SELECT 
-                *
-            FROM 
-                game
-            WHERE 
-                deleted_at IS NULL 
-            ORDER BY 
-                title ASC
-            LIMIT 
-                20
-            OFFSET
-                $1`,
-            [skip]
-        );
-
-        const gameList = gameSelectSQLResult.rows;
+        //20개씩 불러오기
+        const { gameList, skip } = await getGameByDictionaryOrder(page);
 
         res.status(200).send({
             data: {
