@@ -4,6 +4,7 @@ const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
 const { uploadS3 } = require('../middlewares/upload');
 const { generateNotification } = require('../modules/generateNotification');
+const { updateThumnail, updateBanner } = require('../service/admin.service');
 
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
@@ -185,42 +186,14 @@ router.post(
     uploadS3.array('images', 1),
     async (req, res, next) => {
         const gameIdx = req.params.gameidx;
-        let poolClient;
+        const image = req.files[0];
 
         try {
-            const location = req.files[0].location;
-
-            poolClient = await pool.connect();
-            await poolClient.query(`BEGIN`);
-
-            //기존배너이미지 삭제
-            await poolClient.query(
-                `UPDATE 
-                    game_img_banner
-                SET 
-                    deleted_at = now()
-                WHERE 
-                    game_idx = $1
-                AND 
-                    deleted_at IS NULL`,
-                [gameIdx]
-            );
-            //새로운배너이미지 추가
-            await poolClient.query(
-                `INSERT INTO
-                    game_img_banner(game_idx, img_path)
-                VALUES
-                    ($1, $2)`,
-                [gameIdx, location]
-            );
-            await poolClient.query(`COMMIT`);
+            await updateBanner({ gameIdx, image });
 
             res.status(201).send();
         } catch (e) {
-            await poolClient.query(`ROLLBACK`);
             next(e);
-        } finally {
-            if (poolClient) poolClient.release();
         }
     }
 );
@@ -233,41 +206,14 @@ router.post(
     uploadS3.array('images', 1),
     async (req, res, next) => {
         const gameIdx = req.params.gameidx;
-        let poolClient;
+        const image = req.files[0];
+
         try {
-            poolClient = await pool.connect();
-            const location = req.files[0].location;
-
-            await poolClient.query(`BEGIN`);
-            //기존 썸네일 삭제
-            await poolClient.query(
-                `UPDATE
-                    game_img_thumnail
-                SET
-                    deleted_at = now()
-                WHERE
-                    game_idx = $1
-                AND
-                    deleted_at IS NULL`,
-                [gameIdx]
-            );
-            //새로운 썸네일 등록
-            await poolClient.query(
-                `INSERT INTO
-                    game_img_thumnail(game_idx, img_path)
-                VALUES 
-                    ( $1, $2 )`,
-                [gameIdx, location]
-            );
-
-            await poolClient.query(`COMMIT`);
+            await updateThumnail({ gameIdx, image });
 
             res.status(201).send();
         } catch (e) {
-            await poolClient.query(`ROLLBACK`);
             next(e);
-        } finally {
-            if (poolClient) poolClient.release();
         }
     }
 );
