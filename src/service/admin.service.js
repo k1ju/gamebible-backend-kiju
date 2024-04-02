@@ -1,3 +1,4 @@
+const { query } = require('express');
 const { pool } = require('../config/postgres');
 const { getNewestGameIdx } = require('../service/game.service');
 /**
@@ -5,6 +6,18 @@ const { getNewestGameIdx } = require('../service/game.service');
  * @param {gameIdx: number, image: object} getDTO
  * @param {import("pg").PoolClient | undefined} conn
  */
+const showRequest = async (conn = pool) => {
+    const showRequestSQLResult = await conn.query(`
+    SELECT
+        idx, user_idx, title, created_at 
+    FROM
+        request
+    WHERE 
+        deleted_at IS NULL`);
+    const requestList = showRequestSQLResult.rows;
+    return requestList;
+};
+
 const denyRequest = async (getDTO, conn = pool) => {
     const { requestIdx } = getDTO;
     console.log('requestIdx: ', requestIdx);
@@ -146,4 +159,5 @@ module.exports = {
     updateThumnail,
     updateBanner,
     denyRequest,
+    showRequest,
 };

@@ -4,7 +4,12 @@ const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
 const { uploadS3 } = require('../middlewares/upload');
 const { generateNotification } = require('../modules/generateNotification');
-const { updateThumnail, updateBanner, denyRequest } = require('../service/admin.service');
+const {
+    updateThumnail,
+    updateBanner,
+    denyRequest,
+    showRequest,
+} = require('../service/admin.service');
 
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
@@ -93,15 +98,7 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
 //승인요청온 게임목록보기
 router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
     try {
-        const selectRequestSQLResult = await pool.query(
-            `SELECT
-                idx, user_idx, title, created_at 
-            FROM
-                request
-            WHERE 
-                deleted_at IS NULL`
-        );
-        const requestList = selectRequestSQLResult.rows;
+        const requestList = await showRequest();
 
         res.status(200).send({
             data: requestList,
