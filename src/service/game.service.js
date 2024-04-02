@@ -127,10 +127,27 @@ const requestGame = async (getDTO, conn = pool) => {
     return;
 };
 
+const getNewestGameIdx = async (conn) => {
+    const queryResult = await conn.query(
+        `SELECT
+            idx
+        FROM
+            game
+        ORDER BY
+            idx DESC
+        LIMIT
+            1`
+    );
+    const newestGame = queryResult.rows[0];
+
+    return newestGame.idx;
+};
+
 module.exports = {
     getCurrentBannerByGameIdx,
     getPopularGameList,
     getGameBySearch,
     getGameByDictionaryOrder,
     requestGame,
+    getNewestGameIdx,
 };

@@ -4,7 +4,7 @@ const checkLogin = require('../middlewares/checkLogin');
 const checkAdmin = require('../middlewares/checkAdmin');
 const { uploadS3 } = require('../middlewares/upload');
 const { generateNotification } = require('../modules/generateNotification');
-const { updateThumnail, updateBanner } = require('../service/admin.service');
+const { updateThumnail, updateBanner, denyRequest } = require('../service/admin.service');
 
 // 게임 생성
 router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
@@ -114,67 +114,11 @@ router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
 //승인요청 거부
 router.delete('/game/request/:requestidx', checkLogin, checkAdmin, async (req, res, next) => {
     const requestIdx = req.params.requestidx;
-    let poolClient;
     try {
-        poolClient = await pool.connect();
-        await poolClient.query(`BEGIN`);
-        // 요청삭제
-        await poolClient.query(
-            `UPDATE
-                request
-            SET 
-                deleted_at = now(), is_confirmed = false
-            WHERE 
-                idx = $1`,
-            [requestIdx]
-        );
-        // 요청의 user_idx, 게임제목 추출
-        const selectRequestSQLResult = await poolClient.query(
-            `SELECT
-                user_idx, title
-            FROM 
-                request
-            WHERE 
-                idx = $1`,
-            [requestIdx]
-        );
-        const selectedRequest = selectRequestSQLResult.rows[0];
-        // 추출한 user_idx, 게임제목으로 새로운 게임 생성, 삭제 -> 그래야 거절 알림보낼 수 있음
-        await poolClient.query(
-            `INSERT INTO
-                game(user_idx, title, deleted_at)
-            VALUES
-                ( $1, $2, now())`,
-            [selectedRequest.user_idx, selectedRequest.title]
-        );
-        // 방금 생성,삭제된 게임idx 추출
-        const latestGameResult = await poolClient.query(
-            `SELECT
-                idx
-            FROM
-                game
-            ORDER BY
-                idx DESC
-            LIMIT
-                1`
-        );
-        latestGame = latestGameResult.rows[0];
-        //알림생성
-        await generateNotification({
-            conn: poolClient,
-            type: 'DENY_GAME',
-            gameIdx: latestGame.idx,
-            toUserIdx: selectedRequest.user_idx,
-        });
-
-        await poolClient.query(`COMMIT`);
-
+        await denyRequest({ requestIdx });
         res.status(200).send();
     } catch (e) {
-        await poolClient.query(`ROLLBACK`);
         next(e);
-    } finally {
-        if (poolClient) poolClient.release();
     }
 });
 
