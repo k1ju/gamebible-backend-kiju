@@ -143,6 +143,11 @@ const getNewestGameIdx = async (conn) => {
     return newestGame.idx;
 };
 
+const makeNewGame = async (conn) => {
+    const queryResult = await conn.query(`
+    `);
+};
+
 module.exports = {
     getCurrentBannerByGameIdx,
     getPopularGameList,
