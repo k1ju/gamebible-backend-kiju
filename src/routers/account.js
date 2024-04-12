@@ -18,6 +18,7 @@ const {
     validateNickname,
     handleValidationErrors,
 } = require('../middlewares/validator');
+const { UnauthorizedException } = require('../modules/Exception.js');
 
 //로그인
 router.post(
@@ -43,7 +44,8 @@ router.post(
             const { rows: loginRows } = await pool.query(loginsql, values);
 
             if (loginRows.length === 0) {
-                return res.status(401).send({ message: '로그인 실패' });
+                //탭을쓰면 알아서 필요한 모듈, 객체 import
+                throw new UnauthorizedException('로그인 실패');
             }
 
             const login = loginRows[0];
@@ -94,8 +96,9 @@ router.post(
             RETURNING idx`;
             const userValues = [nickname, email, isadmin];
             const userResult = await pool.query(insertUserSql, userValues);
-            if (userResult.rows.length === 0) {
-                return res.status(401).send({ message: '회원가입 실패' });
+
+            if (!userResult.rows[0]) {
+                throw new UnauthorizedException('회원가입 실패');
             }
             const userIdx = userResult.rows[0].idx;
 

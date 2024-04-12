@@ -1,30 +1,141 @@
 const { query } = require('express');
 const { pool } = require('../config/postgres');
-const { getNewestGameIdx } = require('../service/game.service');
+const { getNewestGameIdx, requestGame } = require('../service/game.service');
+const { NotFoundException, GameRequest } = require('../modules/Exception');
+
 /**
- *
- * @param {gameIdx: number, image: object} getDTO
- * @param {import("pg").PoolClient | undefined} conn
+ * @typedef {{
+ *  idx: number,
+ *  user: {
+ *      idx: number,
+ *      isAdmin: boolean,
+ *      nickname: string,
+ *      createdAt: Date,
+ *  },
+ *  title: string,
+ *  isConfirmed: boolean,
+ *  createdAt: Date
+ * }} GameRequest
  */
-const showRequest = async (conn = pool) => {
-    const showRequestSQLResult = await conn.query(`
-    SELECT
-        idx, user_idx, title, created_at 
-    FROM
-        request
-    WHERE 
-        deleted_at IS NULL`);
-    const requestList = showRequestSQLResult.rows;
-    return requestList;
+
+//비즈니스 객체형식으로 만들어주는 함수
+const gameRequest = (row) => {
+    return {
+        idx: row.idx,
+        title: row.title,
+        isConfirmed: row.isConfirmed,
+        createdAt: row.createdAt,
+        user: {
+            idx: row.userIdx,
+            isAdmin: row.isAdmin,
+            nickname: row.nickname,
+            createdAt: row.userCreatedAt,
+        },
+    };
 };
 
-const denyRequest = async (getDTO, conn = pool) => {
-    const { requestIdx } = getDTO;
-    console.log('requestIdx: ', requestIdx);
-    let poolClient;
-    try {
-        poolClient = await conn.connect();
+/**
+ * @typedef {{
+ *  idx: number,
+ *  user: {
+ *      idx: number,
+ *  },
+ *  title: string,
+ *  isConfirmed: boolean,
+ *  createdAt: Date
+ * }} SummaryGameRequest
+ */
 
+/**
+ * 게임 요청 목록 가져오기
+ * @param {import("pg").PoolClient | undefined} conn
+ * @returns {Promise<SummaryGameRequest[]>}
+ */
+const getGameRequestAll = async (conn = pool) => {
+    const result = await conn.query(`
+    SELECT
+        idx, 
+        user_idx AS "userIdx", 
+        user.is_admin AS "isAdmin",
+        user.nickname,
+        user.createdAt AS "userCreatedAt",
+        title,
+        is_confirmed AS "isConfirmed", 
+        created_at AS "createdAt"
+    FROM
+        request
+    JOIN
+        user
+    ON
+        user.idx = user_idx
+    WHERE 
+        deleted_at IS NULL`);
+
+    return result.rows.map((row) => ({
+        idx: row.idx,
+        title: row.title,
+        isConfirmed: row.isConfirmed,
+        createdAt: row.createdAt,
+        user: {
+            idx: row.userIdx,
+            isAdmin: row.isAdmin,
+            nickname: row.nickname,
+            createdAt: row.userCreatedAt,
+        },
+    }));
+};
+
+/**
+ *
+ * @param {number} idx idx of request
+ * @param {import("pg").PoolClient | undefined} conn
+ */
+const getGameRequestByIdx = async (idx, conn = pool) => {
+    const showRequestSQLResult = await conn.query(
+        `
+        SELECT
+            idx, 
+            user_idx AS "userIdx", 
+            user.is_admin AS "isAdmin",
+            user.nickname,
+            user.createdAt AS "userCreatedAt",
+            title,
+            is_confirmed AS "isConfirmed", 
+            created_at AS "createdAt"
+        FROM
+            request
+        JOIN
+            user
+        ON
+            user.idx = user_idx
+        WHERE 
+            idx = $1
+        AND
+            deleted_at IS NULL`,
+        [idx]
+    );
+
+    const request = showRequestSQLResult.rows[0];
+
+    if (!request) {
+        throw new NotFoundException('Cannot find request');
+    }
+
+    return gameRequest(request);
+};
+
+/**
+ *
+ * @param {{
+ *  requestIdx: number
+ * }} requestDenyDto
+ * @param {*} conn
+ * @returns
+ */
+const denyRequest = async (requestDenyDto, conn = pool) => {
+    const { requestIdx } = requestDenyDto;
+    const poolClient = await conn.connect();
+    try {
         await poolClient.query(`BEGIN`);
         await poolClient.query(
             `UPDATE
@@ -35,52 +146,79 @@ const denyRequest = async (getDTO, conn = pool) => {
                 idx = $1`,
             [requestIdx]
         );
-        // 요청의 user_idx, 게임제목 추출
+        const request = await getGameRequestByIdx(requestIdx);
+
+        await poolClient.query(
+            `INSERT INTO
+                game(user_idx, title, deleted_at)
+            VALUES
+                ( $1, $2, now())`,
+            [request.user.idx, request.title]
+        );
+
+        const newestGameIdx = await getNewestGameIdx({
+            conn: poolClient,
+        });
+
+        await generateNotification({
+            conn: poolClient,
+            type: 'DENY_GAME',
+            gameIdx: newestGameIdx,
+            toUserIdx: request.user.idx,
+        });
+
+        await poolClient.query(`COMMIT`);
+        return;
+    } catch (e) {
+        poolClient.query('ROLLBACK');
+    } finally {
+        poolClient.release();
+    }
+};
+
+const makeNewGame = async (requestDto, conn) => {
+    let poolClient;
+    try {
+        // const { requestIdx }
+
+        poolClient = await pool.connect();
+
+        await poolClient.query('BEGIN');
+
+        //요청삭제
+        await poolClient.query(
+            `UPDATE
+                request
+            SET 
+                deleted_at = now(), is_confirmed = true
+            WHERE 
+                idx = $1
+            RETURNING
+                *`,
+            [requestIdx]
+        );
+
+        //제목, 유저idx 불러오기
         const selectRequestSQLResult = await poolClient.query(
             `SELECT
-                user_idx, title
-            FROM 
+                title, user_idx
+            FROM
                 request
             WHERE 
                 idx = $1`,
             [requestIdx]
         );
         const selectedRequest = selectRequestSQLResult.rows[0];
-        console.log('selectedRequest: ', selectedRequest);
-        // 추출한 user_idx, 게임제목으로 새로운 게임 생성, 삭제 -> 그래야 거절 알림보낼 수 있음
+
         await poolClient.query(
             `INSERT INTO
-                game(user_idx, title, deleted_at)
+                game(title, user_idx)
             VALUES
-                ( $1, $2, now())`,
-            [selectedRequest.user_idx, selectedRequest.title]
+                ( $1, $2 )`,
+            [selectedRequest.title, selectedRequest.user_idx]
         );
-
-        // 방금 생성,삭제된 게임idx 추출
-        const newestGameIdx = await getNewestGameIdx({
-            conn: poolClient,
-        });
-        console.log('newestGameIdx: ', newestGameIdx);
-
-        //알림생성
-        await generateNotification({
-            conn: poolClient,
-            type: 'DENY_GAME',
-            gameIdx: newestGameIdx,
-            toUserIdx: selectedRequest.user_idx,
-        });
-
-        console.log('실행완료');
-
-        await poolClient.query(`COMMIT`);
-        return;
-    } catch (e) {
-        if (poolClient) poolClient.query('ROLLBACK');
-    } finally {
-        if (poolClient) poolClient.release();
-    }
+    } catch (e) {}
 };
-
 const updateThumnail = async (getDTO, conn = pool) => {
     const { gameIdx, image } = getDTO;
     let poolClient;
@@ -159,5 +297,5 @@ module.exports = {
     updateThumnail,
     updateBanner,
     denyRequest,
-    showRequest,
+    getGameRequestAll,
 };

@@ -39,7 +39,7 @@ router.post(
 );
 
 //게임목록불러오기
-router.get('/', async (req, res, next) => {
+router.get('/all', async (req, res, next) => {
     let { page } = req.query;
 
     try {

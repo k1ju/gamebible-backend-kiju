@@ -10,6 +10,7 @@ const gameApi = require('./src/routers/game');
 const postApi = require('./src/routers/post');
 const commentApi = require('./src/routers/comment');
 const adminApi = require('./src/routers/admin');
+const { Exception } = require('./src/modules/Exception');
 
 app.use('/account', accountApi);
 app.use('/game', gameApi);
@@ -22,7 +23,17 @@ app.use((req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
-    res.status(err.status || 500).send(err.stack);
+    console.log(err);
+
+    if (err instanceof Exception) {
+        return res.status(err.status).send({
+            message: err.message,
+        });
+    }
+
+    return res.status(500).send({
+        message: '예상하지 못한 에러가 발생했습니다.',
+    });
 });
 
 app.listen(process.env.HTTP_PORT, () => {
