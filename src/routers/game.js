@@ -127,9 +127,17 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
         //특정게임 히스토리목록 최신순으로 출력
-        const historyList = await getHistoryAllByGameIdx({ gameIdx });
+        const { historyList } = await getHistoryAllByGameIdx({ gameIdx });
 
-        res.status(200).send({ data: historyList });
+        if (!historyList || historyList.length == 0) {
+            return res.status(204).send();
+        }
+
+        const { game } = await getGameByIdx({ gameIdx });
+
+        res.status(200).send({
+            data: { idx: gameIdx, title: game.title, historyList: historyList },
+        });
     } catch (e) {
         next(e);
     }

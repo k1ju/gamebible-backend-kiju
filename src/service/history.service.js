@@ -1,7 +1,41 @@
 const { pool } = require('../config/postgres');
+const { History } = require('../entity/historyEntity');
 const moment = require('moment');
 
 const { findModifyUserAllByGameIdx } = require('./user.service');
+
+/**
+ *
+ * @param {{gameIdx:number}} getDTO
+ * @param {import('pg').PoolClient | undefined} conn
+ * @returns {historyList : History[]}
+ */
+
+const getHistoryAllByGameIdx = async (getDTO, conn = pool) => {
+    const getHistoryALLSQLResult = await conn.query(
+        `SELECT 
+            h.idx, h.created_at, u.idx AS user_idx, u.nickname, g.idx AS game_idx, g.title
+        FROM 
+            history h 
+        JOIN 
+            "user" u
+        ON 
+            h.user_idx = u.idx
+        JOIN
+            game g
+        ON 
+            g.idx = h.game_idx
+        WHERE 
+            game_idx = $1
+        ORDER BY
+            h.created_at DESC`,
+        [getDTO.gameIdx]
+    );
+
+    const historyList = getHistoryALLSQLResult.rows;
+
+    return { historyList };
+};
 
 /**
  * history 데이터를 생성한다.
@@ -10,6 +44,7 @@ const { findModifyUserAllByGameIdx } = require('./user.service');
  * @param {{gameIdx: number, historyIdx: number}} getDTO
  * @returns {Promise<void>}
  */
+
 const createHistory = async (data, conn = pool) => {
     await conn.query(
         `INSERT INTO 
@@ -92,43 +127,10 @@ const getHistory = async (getDTO, conn = pool) => {
     return queryResult.rows[0];
 };
 
-const getHistoryListByGameIdx = async (getDTO, conn = pool) => {
-    const gameIdx = getDTO.gameIdx;
-
-    const queryResult = await conn.query(
-        `SELECT 
-            h.idx, h.created_at, u.nickname
-        FROM 
-            history h 
-        JOIN 
-            "user" u
-        ON 
-            h.user_idx = u.idx
-        WHERE 
-            game_idx = $1
-        ORDER BY
-            h.created_at DESC`,
-        [gameIdx]
-    );
-
-    const historyList = queryResult.rows;
-
-    const historyTitleList = historyList.map((element) => {
-        const { idx, created_at, nickname } = element;
-
-        const dateTime = moment(created_at).format('YYYY-MM-DD HH:mm:ss');
-        title = dateTime + ' ' + nickname;
-
-        return { idx, title };
-    });
-
-    return historyTitleList;
-};
-
 module.exports = {
     createHistory,
     updateHistoryByGameIdx,
     getCurrentHistoryByGameIdx,
     getHistory,
-    getHistoryListByGameIdx,
+    getHistoryAllByGameIdx,
 };
