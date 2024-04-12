@@ -71,7 +71,7 @@ const getGameAllWithTitle = async (pagerble, conn = pool) => {
  * @param {import("pg").PoolClient | undefined} conn
  * @returns {gameList: Game[]}
  */
-const getGameBySearch = async (getDTO, conn = pool) => {
+const getGameByTitle = async (getDTO, conn = pool) => {
     const { title } = getDTO;
     const queryResult = await conn.query(
         `SELECT
@@ -92,7 +92,7 @@ const getGameBySearch = async (getDTO, conn = pool) => {
     );
     const gameList = queryResult.rows;
 
-    return gameList;
+    return { gameList };
 };
 
 /**
@@ -180,7 +180,6 @@ const getBannerByGameIdx = async (getDTO, conn = pool) => {
             deleted_at IS NULL`,
         [gameIdx]
     );
-    // console.log('queryResult: ', queryResult);
 
     return { imgPath: queryResult.rows[0] };
 };
@@ -188,7 +187,7 @@ const getBannerByGameIdx = async (getDTO, conn = pool) => {
 module.exports = {
     getBannerByGameIdx,
     getGameWithPostNumber,
-    getGameBySearch,
+    getGameByTitle,
     // getGameAll,
     getGameAllWithTitle,
     requestGame,

@@ -6,11 +6,11 @@ const checkLogin = require('../middlewares/checkLogin');
 const { uploadS3 } = require('../middlewares/upload');
 const { findModifyUserAllByGameIdx } = require('../service/user.service');
 const {
-    getCurrentBannerByGameIdx,
-    getGameBySearch,
+    getGameBannerByIdx,
     requestGame,
     getGameWithPostNumber,
     getGameAllWithTitle,
+    getGameByTitle,
 } = require('../service/game.service');
 const {
     createHistory,
@@ -69,7 +69,11 @@ router.get(
     async (req, res, next) => {
         const { title } = req.query;
         try {
-            const gameList = await getGameBySearch({ title });
+            const { gameList } = await getGameByTitle({ title });
+
+            if (!gameList || gameList.length == 0) {
+                return res.status(204).send();
+            }
 
             res.status(200).send({
                 data: gameList,
