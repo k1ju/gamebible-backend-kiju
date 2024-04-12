@@ -3,14 +3,14 @@ const { pool } = require('../config/postgres');
 const { query, body } = require('express-validator');
 const { handleValidationErrors } = require('../middlewares/validator');
 const checkLogin = require('../middlewares/checkLogin');
-const { generateNotification, generateNotifications } = require('../modules/generateNotification');
+const { uploadS3 } = require('../middlewares/upload');
 const { findModifyUserAllByGameIdx } = require('../service/user.service');
 const {
     getCurrentBannerByGameIdx,
-    getPopularGameList,
     getGameBySearch,
-    getGameByDictionaryOrder,
     requestGame,
+    getGameWithPostNumber,
+    getGameAllWithTitle,
 } = require('../service/game.service');
 const {
     createHistory,
@@ -44,14 +44,15 @@ router.get('/all', async (req, res, next) => {
 
     try {
         //20개씩 불러오기
-        const { gameList, skip } = await getGameByDictionaryOrder(page);
+        const {
+            gameList,
+            meta: { totalCount },
+        } = await getGameAllWithTitle({ page });
 
         res.status(200).send({
             data: {
-                maxPage: maxPage,
+                totalCount: totalCount,
                 page: page,
-                skip: skip,
-                count: gameList.length,
                 gameList: gameList,
             },
         });
@@ -84,14 +85,12 @@ router.get('/popular', async (req, res, next) => {
     const { page } = req.query || 1;
     try {
         //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
-        const { skip, gameList } = await getPopularGameList(page);
+        const { totalCount, gameList } = await getGameWithPostNumber(page);
 
         res.status(200).send({
             data: {
-                maxPage: maxPage,
+                totalCount: totalCount,
                 page: page,
-                skip: skip,
-                count: gameList.length,
                 gameList: gameList,
             },
         });
@@ -103,10 +102,11 @@ router.get('/popular', async (req, res, next) => {
 router.get('/:gameidx/banner', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
-        const banner = await getCurrentBannerByGameIdx({ gameIdx });
+        const { banner } = await getBannerByGameIdx({ gameIdx });
+        console.log('banner: ', banner);
 
         res.status(200).send({
-            data: banner,
+            data: {},
         });
     } catch (e) {
         next(e);

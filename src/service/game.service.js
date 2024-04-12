@@ -1,40 +1,5 @@
 const { pool } = require('../config/postgres');
-
-class Game {
-    idx;
-    title;
-    user;
-    createdAt;
-
-    /**
-     * @param {{
-     *  idx: number,
-     *  title:string,
-     *  user: {
-     *      idx: number,
-     *      isAdmin: boolean,
-     *      nickname: string
-     * },
-     * createdAt: time
-     * }} data
-     */
-    constructor(data) {
-        this.idx = data.idx;
-        this.title = data.title;
-        this.user = data.user;
-        this.createdAt = data.createdAt;
-    }
-
-    static createGame(row) {
-        return new Game({
-            idx: row.idx,
-            title: row.title,
-            user: row.user,
-            createdAt: row.createdAt,
-        });
-    }
-}
-
+const { Game } = require('../entity/gameEntity');
 /**
  *게임생성요청
  * @param {gameIdx: number, userIdx: number, title: string} getDTO
@@ -55,22 +20,29 @@ const requestGame = async (getDTO, conn = pool) => {
 };
 
 /**
- * 게임목록불러오기
- * @param {number} page
+ * 게임 목록 가져오기
+ * @param {{page: number,
+ *          orderBy: 'title',
+ *          order?: 'asc' | 'desc' }} pagerble
  * @param {import("pg").PoolClient | undefined} conn
- * @returns
+ * @returns {{gameList: Game[],
+ *            meta: {
+ *              totalCount: number
+ *       }
+ * }}
  */
-const getGameByDictionaryOrder = async (page, conn = pool) => {
-    const skip = (page - 1) * 20;
+const getGameAllWithTitle = async (pagerble, conn = pool) => {
+    const skip = (pagerble.page - 1) * 20;
+    // prettier-ignore
     const queryResult = await conn.query(
         `SELECT 
             *
         FROM 
             game
         WHERE 
-            deleted_at IS NULL 
-        ORDER BY 
-            title ASC
+            deleted_at IS NULL ${pagerble.orderBy === 'title' ?
+       `ORDER BY 
+            title ${order === 'asc' ? 'asc' : 'desc'}` : ``}
         LIMIT 
             20
         OFFSET
@@ -79,16 +51,25 @@ const getGameByDictionaryOrder = async (page, conn = pool) => {
     );
 
     let gameList = queryResult.rows.map((row) => Game.createGame(row));
-    console.log('gameList: ', gameList);
 
-    return { gameList, skip };
+    const countQuery = await conn.query(`
+        SELECT
+            count(*)
+        FROM
+            game
+    `);
+    const totalCount = countQuery.rows[0].count;
+
+    return { gameList: gameList, meta: { totalCount: totalCount } };
 };
 
 /**
  * 게임검색하기
- * @param
- *
- *
+ * @param {{
+ *      title: string,
+ * }} getDTO
+ * @param {import("pg").PoolClient | undefined} conn
+ * @returns {gameList: Game[]}
  */
 const getGameBySearch = async (getDTO, conn = pool) => {
     const { title } = getDTO;
@@ -116,11 +97,17 @@ const getGameBySearch = async (getDTO, conn = pool) => {
 
 /**
  * 인기순게임가져오기
- * @param {*} page
- * @param {*} conn
- * @returns
+ * @param {{page : number;
+ *          }} pagerble
+ * @param {import("pg").PoolClient | undefined} conn
+ * @returns {{gameList: game[],
+ *            meta: {
+ *                totalCount: number,
+ *                    skip: number
+ *         }
+ * }}
  */
-const getPopularGameList = async (page, conn = pool) => {
+const getGameWithPostNumber = async (page, conn = pool) => {
     let count = null;
     let skip = null;
 
@@ -133,6 +120,14 @@ const getPopularGameList = async (page, conn = pool) => {
         count = 16;
         skip = (page - 1) * 16 + 3;
     }
+
+    const getGameNumberSQLResult = await conn.query(`
+        SELECT
+            count(*)
+        FROM
+            game
+     `);
+    const gameNumber = getGameNumberSQLResult.rows[0].count;
 
     const queryResult = await conn.query(
         `SELECT
@@ -159,17 +154,20 @@ const getPopularGameList = async (page, conn = pool) => {
             $2`,
         [count, skip]
     );
-    const gameList = queryResult.rows;
-    return { count, skip, gameList };
+    let game = queryResult.rows.map((row) => Game().createGame(row));
+    return {
+        gameList: game,
+        totalCount: gameNumber,
+    };
 };
 
 /**
  * 게임배너가져오기
- * @param {*} getDTO
- * @param {*} conn
- * @returns
+ * @param {{gameIdx: Number}} getDTO
+ * @param {import("pg").PoolClient | undefined} conn
+ * @returns {Game}
  */
-const getCurrentBannerByGameIdx = async (getDTO, conn = pool) => {
+const getBannerByGameIdx = async (getDTO, conn = pool) => {
     const { gameIdx } = getDTO;
     const queryResult = await conn.query(
         `SELECT
@@ -182,32 +180,16 @@ const getCurrentBannerByGameIdx = async (getDTO, conn = pool) => {
             deleted_at IS NULL`,
         [gameIdx]
     );
+    // console.log('queryResult: ', queryResult);
 
-    return queryResult.rows[0];
-};
-
-//가장최신게임가져오기? ->빼기
-const getNewestGameIdx = async (conn) => {
-    const queryResult = await conn.query(
-        `SELECT
-            idx
-        FROM
-            game
-        ORDER BY
-            idx DESC
-        LIMIT
-            1`
-    );
-    const newestGame = queryResult.rows[0];
-
-    return newestGame.idx;
+    return { imgPath: queryResult.rows[0] };
 };
 
 module.exports = {
-    getCurrentBannerByGameIdx,
-    getPopularGameList,
+    getBannerByGameIdx,
+    getGameWithPostNumber,
     getGameBySearch,
-    getGameByDictionaryOrder,
+    // getGameAll,
+    getGameAllWithTitle,
     requestGame,
-    getNewestGameIdx,
 };
