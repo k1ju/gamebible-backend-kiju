@@ -31,9 +31,16 @@ class History {
 
     static createHistory(row) {
         return new History({
-            idx: row.row,
-            game: row.game,
-            user: row.user,
+            idx: row.idx,
+            game: {
+                idx: row.gameIdx,
+                title: row.title,
+            },
+            user: {
+                idx: row.userIdx,
+                isAdmin: row.isAdmin,
+                nickname: row.nickname,
+            },
             content: row.content,
             createdAt: row.createdAt,
         });

@@ -16,7 +16,7 @@ const {
     createHistory,
     updateHistoryByGameIdx,
     getCurrentHistoryByGameIdx,
-    getHistory,
+    getHistoryByIdx,
     getHistoryAllByGameIdx,
 } = require('../service/history.service');
 //게임생성요청
@@ -110,11 +110,10 @@ router.get('/:gameidx/banner', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
         const { game } = await getGameByIdx({ gameIdx });
-        console.log('banner: ', game);
 
         res.status(200).send({
             data: {
-                imgPath: game.banner,
+                game: game,
             },
         });
     } catch (e) {
@@ -145,12 +144,12 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
 
 //히스토리 자세히보기
 router.get('/:gameidx/history/:historyidx?', async (req, res, next) => {
-    let historyIdx = req.params.historyidx;
+    const historyIdx = req.params.historyidx;
     const gameIdx = req.params.gameidx;
     try {
-        const history = await getHistory({ historyIdx, gameIdx });
+        const { history } = await getHistoryByIdx({ historyIdx: historyIdx, gameIdx: gameIdx });
 
-        res.status(200).send({ data: history });
+        res.status(200).send({ data: { history: history } });
     } catch (e) {
         next(e);
     }

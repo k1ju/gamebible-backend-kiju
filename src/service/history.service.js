@@ -110,27 +110,71 @@ const getCurrentHistoryByGameIdx = async (getDTO, conn = pool) => {
     return queryResult.rows[0];
 };
 
-const getHistory = async (getDTO, conn = pool) => {
-    const gameIdx = getDTO.gameIdx;
-    const historyIdx = getDTO.historyIdx;
-    const queryResult = await conn.query(
-        `SELECT    
-            * 
-        FROM 
-            history
-        WHERE 
-            idx = $1
-        AND 
-            game_idx = $2`,
-        [historyIdx, gameIdx]
-    );
-    return queryResult.rows[0];
+/**
+ *
+ * @param {{historyIdx: number | undefined, gameIdx : number}} getDTO
+ * @param {import('pg').PoolClient | undefined} conn
+ * @returns {History: object}
+ */
+const getHistoryByIdx = async (getDTO, conn = pool) => {
+    let getHistoryByIdxSQLResult;
+    //historyIdx가 없을때
+    if (!getDTO.historyIdx) {
+        getHistoryByIdxSQLResult = await conn.query(
+            `SELECT    
+                h.idx, content, h.created_at AS "createdAt", g.idx AS "gameIdx", g.title, u.idx AS "userIdx", u.nickname, u.is_admin AS "isAdmin"  
+            FROM 
+                history h
+            JOIN
+                game g
+            ON
+                g.idx = h.game_idx
+            JOIN
+                "user" u
+            ON
+                u.idx = h.user_idx
+            WHERE 
+                game_idx = $1
+            AND 
+                h.created_at IS NOT NULL
+            ORDER BY
+                h.idx DESC
+            LIMIT
+                1`,
+            [getDTO.gameIdx]
+        );
+    } else {
+        //historyIdx가 있을때
+
+        getHistoryByIdxSQLResult = await conn.query(
+            `SELECT    
+                h.idx, content, h.created_at AS "createdAt", g.idx AS "gameIdx", g.title, u.idx AS "userIdx", u.nickname, u.is_admin AS "isAdmin"  
+            FROM 
+                history h
+            JOIN
+                game g
+            ON
+                g.idx = h.game_idx
+            JOIN
+                "user" u
+            ON
+                u.idx = h.user_idx
+            WHERE 
+                h.idx = $1
+            AND 
+                game_idx = $2`,
+            [getDTO.historyIdx, getDTO.gameIdx]
+        );
+    }
+    const history = History.createHistory(getHistoryByIdxSQLResult.rows[0]);
+
+    return { history };
 };
 
 module.exports = {
     createHistory,
     updateHistoryByGameIdx,
     getCurrentHistoryByGameIdx,
-    getHistory,
+    getHistoryByIdx,
     getHistoryAllByGameIdx,
 };

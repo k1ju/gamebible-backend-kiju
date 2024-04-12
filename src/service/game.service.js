@@ -171,7 +171,7 @@ const getGameByIdx = async (getDTO, conn = pool) => {
     const { gameIdx } = getDTO;
     const getGameByIdxSQLResult = await conn.query(
         `SELECT
-            g.idx, title, g.created_at, g.user_idx, u.nickname, u.is_admin, b.img_path AS banner, t.img_path AS thumnail
+            g.idx, title, g.created_at AS "createdAt", g.user_idx AS "userIdx", u.nickname, u.is_admin AS "isAdmin", b.img_path AS banner, t.img_path AS thumnail
         FROM
             game g
         JOIN 
@@ -193,6 +193,7 @@ const getGameByIdx = async (getDTO, conn = pool) => {
         [gameIdx]
     );
     const game = Game.createGame(getGameByIdxSQLResult.rows[0]);
+    console.log('game: ', game);
 
     return { game };
 };

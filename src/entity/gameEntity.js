@@ -33,7 +33,11 @@ class Game {
         return new Game({
             idx: row.idx,
             title: row.title,
-            user: row.user,
+            user: {
+                idx: row.userIdx,
+                isAdmin: row.isAdmin,
+                nickname: row.nickname,
+            },
             createdAt: row.createdAt,
             banner: row.banner,
             thumnail: row.thumnail,
