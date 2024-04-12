@@ -17,7 +17,7 @@ const {
     updateHistoryByGameIdx,
     getCurrentHistoryByGameIdx,
     getHistory,
-    getHistoryListByGameIdx,
+    getHistoryAllByGameIdx,
 } = require('../service/history.service');
 //게임생성요청
 router.post(
@@ -127,7 +127,7 @@ router.get('/:gameidx/history/all', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
         //특정게임 히스토리목록 최신순으로 출력
-        const historyList = await getHistoryListByGameIdx({ gameIdx });
+        const historyList = await getHistoryAllByGameIdx({ gameIdx });
 
         res.status(200).send({ data: historyList });
     } catch (e) {
