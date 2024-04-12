@@ -6,7 +6,7 @@ const checkLogin = require('../middlewares/checkLogin');
 const { uploadS3 } = require('../middlewares/upload');
 const { findModifyUserAllByGameIdx } = require('../service/user.service');
 const {
-    getGameBannerByIdx,
+    getGameByIdx,
     requestGame,
     getGameWithPostNumber,
     getGameAllWithTitle,
@@ -109,11 +109,13 @@ router.get('/popular', async (req, res, next) => {
 router.get('/:gameidx/banner', async (req, res, next) => {
     const gameIdx = req.params.gameidx;
     try {
-        const { banner } = await getBannerByGameIdx({ gameIdx });
-        console.log('banner: ', banner);
+        const { game } = await getGameByIdx({ gameIdx });
+        console.log('banner: ', game);
 
         res.status(200).send({
-            data: {},
+            data: {
+                imgPath: game.banner,
+            },
         });
     } catch (e) {
         next(e);

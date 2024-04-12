@@ -167,28 +167,40 @@ const getGameWithPostNumber = async (pagerble, conn = pool) => {
  * @param {import("pg").PoolClient | undefined} conn
  * @returns {Game}
  */
-const getBannerByGameIdx = async (getDTO, conn = pool) => {
+const getGameByIdx = async (getDTO, conn = pool) => {
     const { gameIdx } = getDTO;
-    const queryResult = await conn.query(
+    const getGameByIdxSQLResult = await conn.query(
         `SELECT
-            img_path AS "imgPath"
-        FROM 
-            game_img_banner
+            g.idx, title, g.created_at, g.user_idx, u.nickname, u.is_admin, b.img_path AS banner, t.img_path AS thumnail
+        FROM
+            game g
+        JOIN 
+            game_img_banner b
+        ON
+            g.idx = b.game_idx
+        JOIN
+            game_img_thumnail t
+        ON
+            g.idx = t.game_idx
+        JOIN
+            "user" u
+        ON
+            u.idx = g.user_idx
         WHERE
-            game_idx = $1
+            g.idx = $1
         AND
-            deleted_at IS NULL`,
+            b.deleted_at IS NULL`,
         [gameIdx]
     );
+    const game = Game.createGame(getGameByIdxSQLResult.rows[0]);
 
-    return { imgPath: queryResult.rows[0] };
+    return { game };
 };
 
 module.exports = {
-    getBannerByGameIdx,
+    getGameByIdx,
     getGameWithPostNumber,
     getGameByTitle,
-    // getGameAll,
     getGameAllWithTitle,
     requestGame,
 };
