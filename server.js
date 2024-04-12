@@ -13,6 +13,7 @@ const gameApi = require('./src/routers/game');
 const postApi = require('./src/routers/post');
 const commentApi = require('./src/routers/comment');
 const adminApi = require('./src/routers/admin');
+const { Exception } = require('./src/modules/Exception');
 
 app.use('/account', accountApi);
 app.use('/game', gameApi);
