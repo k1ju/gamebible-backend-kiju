@@ -26,7 +26,7 @@ router.post('/game', checkLogin, checkAdmin, async (req, res, next) => {
     }
 });
 //승인요청온 게임목록보기
-router.get('/game/request', checkLogin, checkAdmin, async (req, res, next) => {
+router.get('/game/request/all', checkLogin, checkAdmin, async (req, res, next) => {
     try {
         const requestList = await showRequest();
 
