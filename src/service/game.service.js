@@ -107,11 +107,11 @@ const getGameByTitle = async (getDTO, conn = pool) => {
  *         }
  * }}
  */
-const getGameWithPostNumber = async (page, conn = pool) => {
+const getGameWithPostNumber = async (pagerble, conn = pool) => {
     let count = null;
     let skip = null;
 
-    if (page == 1) {
+    if (pagerble.page == 1) {
         //1페이지는 19개 불러오기
         count = 19;
         skip = 0;
@@ -129,7 +129,7 @@ const getGameWithPostNumber = async (page, conn = pool) => {
      `);
     const gameNumber = getGameNumberSQLResult.rows[0].count;
 
-    const queryResult = await conn.query(
+    const selectGameWithPostSQLResult = await conn.query(
         `SELECT
             g.idx, g.title, count(*) AS "postCount" ,t.img_path AS "imgPath" 
         FROM 
@@ -154,10 +154,10 @@ const getGameWithPostNumber = async (page, conn = pool) => {
             $2`,
         [count, skip]
     );
-    let game = queryResult.rows.map((row) => Game().createGame(row));
+    let gameList = selectGameWithPostSQLResult.rows.map((row) => Game.createGame(row));
     return {
-        gameList: game,
-        totalCount: gameNumber,
+        gameList: gameList,
+        meta: { totalCount: gameNumber },
     };
 };
 

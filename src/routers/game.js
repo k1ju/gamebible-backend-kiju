@@ -89,7 +89,10 @@ router.get('/popular', async (req, res, next) => {
     const { page } = req.query || 1;
     try {
         //게시글 수가 많은 게임 순서대로 게임 idx, 제목, 이미지경로 추출
-        const { totalCount, gameList } = await getGameWithPostNumber(page);
+        const {
+            gameList,
+            meta: { totalCount },
+        } = await getGameWithPostNumber({ page });
 
         res.status(200).send({
             data: {
