@@ -27,20 +27,19 @@ const generateNotification = async (option) => {
 };
 
 /**
- * @param {{
- *  conn: any,
- *  gameIdx: number,
- *  toUserIdx: number[],
- * }} option
+ * @param {import('pg').poolClient | undefined} conn
+ * @param {{gameIdx:number,
+ *          toUserIdx: number[]}} DTO
+ * @returns {void}
  */
-const generateNotifications = async (option) => {
-    (option.poolClient || pool).query(
+const generateNotifications = async (DTO, conn = pool) => {
+    await conn.query(
         `INSERT INTO
                 notification (type, game_idx, post_idx, user_idx)
             SELECT
                 2, $1, NULL,
                 UNNEST($2::int[])`,
-        [option.gameIdx, option.toUserIdx]
+        [DTO.gameIdx, DTO.toUserIdx]
     );
 };
 

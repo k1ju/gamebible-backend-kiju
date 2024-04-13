@@ -3,6 +3,7 @@ const { History } = require('../entity/historyEntity');
 const moment = require('moment');
 
 const { findModifyUserAllByGameIdx } = require('./user.service');
+const { generateNotifications } = require('../modules/generateNotification');
 
 /**
  *
@@ -39,47 +40,51 @@ const getHistoryAllByGameIdx = async (getDTO, conn = pool) => {
 
 /**
  * history 데이터를 생성한다.
- * @param {{gameIdx: number, userIdx: number, content: string}} data
+ * @param {{gameIdx: number, userIdx: number, content: string}} insertDTO
  * @param {import('pg').PoolClient | undefined} conn
- * @param {{gameIdx: number, historyIdx: number}} getDTO
  * @returns {Promise<void>}
  */
 
-const createHistory = async (data, conn = pool) => {
-    await conn.query(
+const createHistory = async (insertDTO, conn = pool) => {
+    const createHistorySQLResult = await conn.query(
         `INSERT INTO 
             history(game_idx, user_idx, content)
         VALUES 
-            ($1, $2, $3)`,
-        [data.gameIdx, data.userIdx, data.content]
+            ($1, $2, $3)
+        RETURNING
+            idx`,
+        [insertDTO.gameIdx, insertDTO.userIdx, insertDTO.content]
     );
-
-    return;
+    const historyIdx = createHistorySQLResult.rows[0].idx;
+    console.log('historyIdx: ', historyIdx);
+    // 반환값 무엇? : 알림 -> 수정이력 있는사람
+    return { historyIdx };
 };
 
+/**
+ * 게임 내용(최신history)를 수정한다
+ * @param {{gameIdx:Number, userIdx:Number, content:String}} updateDto
+ * @param {import('pg').PoolClient | undefined} conn
+ * @returns {void}
+ */
 const updateHistoryByGameIdx = async (updateDto, conn = pool) => {
-    const gameIdx = updateDto.gameIdx;
-    const content = updateDto.content;
-    const userIdx = updateDto.userIdx;
-
     let poolClient = null;
     try {
         poolClient = await conn.connect();
 
         await conn.query('BEGIN');
 
-        const modifyUsers = findModifyUserAllByGameIdx(updateDto.gameIdx, conn);
+        const { modifyUsers } = await findModifyUserAllByGameIdx(updateDto.gameIdx, conn);
 
         await generateNotifications({
-            conn,
-            gameIdx,
-            toUserIdx: modifyUsers.map((modifyUser) => modifyUser.user_idx),
+            gameIdx: updateDto.gameIdx,
+            toUserIdx: modifyUsers,
         });
 
         await createHistory({
-            gameIdx,
-            userIdx,
-            content,
+            gameIdx: updateDto.gameIdx,
+            userIdx: updateDto.userIdx,
+            content: updateDto.content,
         });
 
         await conn.query('COMMIT');

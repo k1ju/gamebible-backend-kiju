@@ -17,7 +17,9 @@ const findModifyUserAllByGameIdx = async (gameIdx, conn = pool) => {
         [gameIdx]
     );
 
-    return queryResult.rows;
+    const modifyUsers = queryResult.rows.map((row) => row.user_idx);
+
+    return { modifyUsers };
 };
 
 const signUp = () => {};

@@ -193,7 +193,6 @@ const getGameByIdx = async (getDTO, conn = pool) => {
         [gameIdx]
     );
     const game = Game.createGame(getGameByIdxSQLResult.rows[0]);
-    console.log('game: ', game);
 
     return { game };
 };

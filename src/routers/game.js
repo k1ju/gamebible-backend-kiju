@@ -19,6 +19,7 @@ const {
     getHistoryByIdx,
     getHistoryAllByGameIdx,
 } = require('../service/history.service');
+const { generateNotifications } = require('../modules/generateNotification');
 //게임생성요청
 router.post(
     '/request',
@@ -246,24 +247,33 @@ router.get('/:gameidx/wiki', async (req, res, next) => {
 
 //게임 수정하기
 router.put(
-    '/:gameidx/wiki/:historyidx',
+    '/:gameidx/wiki/',
     checkLogin,
     body('content').trim().isLength({ min: 2 }).withMessage('2글자이상 입력해주세요'),
     handleValidationErrors,
     async (req, res, next) => {
-        // HTTP 통신 처리하는 곳
-        const gameIdx = req.params.gameidx;
-        const { content } = req.body;
+        try {
+            const gameIdx = req.params.gameidx;
+            const { userIdx } = req.decoded;
+            const { content } = req.body;
 
-        // 비즈니스 로직 실행 던지고
-        await updateHistoryByGameIdx({
-            gameIdx,
-            userIdx,
-            content,
-        });
+            await updateHistoryByGameIdx({
+                gameIdx,
+                userIdx,
+                content,
+            });
 
-        // 응답
-        res.status(200).send();
+            const { modifyUsers } = await findModifyUserAllByGameIdx(gameIdx);
+
+            await generateNotifications({
+                gameIdx: gameIdx,
+                toUserIdx: modifyUsers,
+            });
+
+            res.status(201).send();
+        } catch (e) {
+            next(e);
+        }
     }
 );
 
